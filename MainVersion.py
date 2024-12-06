@@ -1,6 +1,5 @@
 import sqlite3
 import sys
-from random import choice
 
 from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QPixmap
@@ -8,6 +7,8 @@ from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLabel,
     QCalendarWidget, QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QHBoxLayout, QDateEdit
 )
+
+from env import TestEnv
 
 # создание бд
 DB_NAME = "finance_tracker.db"
@@ -29,20 +30,6 @@ def setup_database():
     """)
     conn.commit()
     conn.close()
-
-
-class TestMode:
-    @staticmethod
-    def random_item():
-        with open('random_items.txt') as f:
-            read_data = f.read().split('\n')
-            return choice(read_data)
-
-    @staticmethod
-    def random_amount():
-        with open('random_amount.txt') as f:
-            read_data = f.read().split('\n')
-            return choice(read_data)
 
 
 class FinanceTracker(QMainWindow):
@@ -71,8 +58,8 @@ class FinanceTracker(QMainWindow):
         self.category_input.addItems(["Еда", "Электроника", "Одежда", "Другое"])
 
         if test_mode == 1:
-            self.item_input.setText(TestMode.random_item())
-            self.amount_input.setText(TestMode.random_amount())
+            self.item_input.setText(TestEnv.random_item())
+            self.amount_input.setText(TestEnv.random_amount())
 
         input_layout.addWidget(self.item_input)
         input_layout.addWidget(self.amount_input)
@@ -151,8 +138,8 @@ class FinanceTracker(QMainWindow):
         self.show_message("Покупка добавлена успешно!")
         self.load_transactions()
         if test_mode == 1:
-            self.item_input.setText(TestMode.random_item())
-            self.amount_input.setText(TestMode.random_amount())
+            self.item_input.setText(TestEnv.random_item())
+            self.amount_input.setText(TestEnv.random_amount())
         else:
             self.item_input.clear()
             self.amount_input.clear()
