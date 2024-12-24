@@ -5,7 +5,7 @@ from PyQt6.QtCore import QDate
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QApplication, QMainWindow, QVBoxLayout, QWidget, QPushButton, QLabel,
-    QCalendarWidget, QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QHBoxLayout, QDateEdit
+    QCalendarWidget, QTableWidget, QTableWidgetItem, QLineEdit, QComboBox, QHBoxLayout, QDateEdit, QInputDialog
 )
 
 from env import TestEnv
@@ -28,6 +28,15 @@ def setup_database():
         category TEXT
     )
     """)
+    conn.commit()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS categories (
+            id INTEGER PRIMARY KEY,
+            name TEXT UNIQUE
+        )
+        """)
+    cursor.execute("INSERT OR IGNORE INTO categories (name) VALUES (?)", ("Другое",))
     conn.commit()
     conn.close()
 
@@ -55,7 +64,7 @@ class FinanceTracker(QMainWindow):
         self.amount_input = QLineEdit()
         self.amount_input.setPlaceholderText("Стоимость")
         self.category_input = QComboBox()
-        self.category_input.addItems(["Еда", "Электроника", "Одежда", "Другое"])
+        self.load_categories()
 
         if test_mode == 1:
             self.item_input.setText(TestEnv.random_item())
@@ -74,8 +83,12 @@ class FinanceTracker(QMainWindow):
         self.stats_button = QPushButton("Показать статистику за заданный период")
         self.stats_button.clicked.connect(self.show_statistics)
 
+        self.add_category_button = QPushButton("Добавить категорию")
+        self.add_category_button.clicked.connect(self.add_category)
+
         button_layout.addWidget(self.add_button)
         button_layout.addWidget(self.stats_button)
+        button_layout.addWidget(self.add_category_button)
         main_layout.addLayout(button_layout)
 
         # временные рамки
@@ -115,6 +128,17 @@ class FinanceTracker(QMainWindow):
         container = QWidget()
         container.setLayout(main_layout)
         self.setCentralWidget(container)
+
+    def load_categories(self):
+        self.category_input.clear()
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT name FROM categories")
+        categories = cursor.fetchall()
+        conn.close()
+        print(categories)
+        for category in categories:
+            self.category_input.addItem(category[0])
 
     def add_transaction(self):
         date = self.calendar.selectedDate().toString(date_format)
@@ -160,7 +184,6 @@ class FinanceTracker(QMainWindow):
         # Получаем ID записи
         record_id = self.table.item(row, 0).text()  # ID скрыт в первой колонке
         new_value = self.table.item(row, column).text()
-        print(new_value)
 
         # Определяем, какое поле обновляется
         field_map = {1: "date", 2: "item", 3: "amount", 4: "category"}
@@ -210,6 +233,21 @@ class FinanceTracker(QMainWindow):
             message += f"{category}: {total:.2f}\n"
 
         self.show_message(message)
+
+    def add_category(self):
+        new_category, ok = QInputDialog.getText(self, "Добавить категорию", "Введите название новой категории:")
+        if ok and new_category:
+            conn = sqlite3.connect(DB_NAME)
+            cursor = conn.cursor()
+            try:
+                cursor.execute("INSERT INTO categories (name) VALUES (?)", (new_category,))
+                conn.commit()
+                self.show_message(f"Категория '{new_category}' добавлена.")
+                self.load_categories()
+            except sqlite3.IntegrityError:
+                self.show_message("Такая категория уже существует.")
+            finally:
+                conn.close()
 
     def show_message(self, message):
         self.msg_label = QLabel(message)
